@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_application_1/main.dart';
+import 'package:flutter_application_1/sign_in_screen.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 
@@ -16,7 +17,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
   final TextEditingController _passwordController = TextEditingController();
 
   Future<void> _registerUser() async {
-    final url = Uri.parse('http://localhost:3000/user/signup');
+    final url = Uri.parse('https://api-travell-app-1.onrender.com/user/signup');
     final headers = {'Content-Type': 'application/json'};
     final body = jsonEncode({
       'firstName': _firstNameController.text,
@@ -26,28 +27,32 @@ class _SignUpScreenState extends State<SignUpScreen> {
       'role': _selectedRole,
     });
 
-    try {
-      final response = await http.post(url, headers: headers, body: body);
-      if (response.statusCode == 201) {
-        // Registration successful
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Registration successful')),
-        );
-      } else if (response.statusCode == 400) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('User already exists')),
-        );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Registration failed')),
-        );
-      }
-    } catch (error) {
+     try {
+    final response = await http.post(url, headers: headers, body: body);
+    if (response.statusCode == 201) {
+      // Đăng ký thành công, điều hướng về trang Home
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error occurred')),
+        SnackBar(content: Text('Registration successful')),
+      );
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => SignInScreen()), // Điều hướng đến Home
+      );
+    } else if (response.statusCode == 400) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('User already exists')),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Registration failed')),
       );
     }
+  } catch (error) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Error occurred')),
+    );
   }
+}
 
   @override
   Widget build(BuildContext context) {

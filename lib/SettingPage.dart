@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_application_1/EditProfilePage.dart';
 import 'package:flutter_application_1/Profile.dart';
+import 'package:flutter_application_1/sign_in_screen.dart';
 
 class SettingsPage extends StatefulWidget {
   @override
@@ -157,7 +158,10 @@ class _SettingsPageState extends State<SettingsPage> {
           Center(
             child: TextButton(
               onPressed: () {
-                // Sign out function
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => SignInScreen()),
+                );
               },
               child: Text(
                 'Sign out',

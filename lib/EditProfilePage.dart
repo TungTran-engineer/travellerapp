@@ -67,7 +67,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
             SizedBox(height: 10),
             TextButton(
               onPressed: () {
-                // Thêm logic thay đổi mật khẩu
+
               },
               child: Text(
                 'Change Password',
@@ -92,7 +92,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
             _buildTextField('Phone number', '(+84) 912 345 678'),
             TextButton(
               onPressed: () {
-                // Thêm logic thay đổi thời gian khả dụng
+
               },
               child: Text(
                 'Change Available time',
