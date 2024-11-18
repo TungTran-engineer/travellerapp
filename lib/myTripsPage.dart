@@ -5,6 +5,8 @@ import 'package:flutter_application_1/home.dart';
 import 'package:flutter_application_1/notification.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'package:cached_network_image/cached_network_image.dart';
+
 
 class Trip {
   final String id;
@@ -17,7 +19,7 @@ class Trip {
   final String detail;
   final String chat;
   final String pay;
-  final bool isWishList; // Add a field for Wish List categorization
+  final bool isWishList;
 
   Trip({
     required this.id,
@@ -48,7 +50,7 @@ class Trip {
       detail: actionsData['Detail'] ?? 'No detail',
       chat: actionsData['Chat'] ?? 'No chat link',
       pay: actionsData['Pay'] ?? 'No payment info',
-      isWishList: json['isWishList'] ?? false, // This field should be in the API
+      isWishList: json['isWishList'] ?? false,
     );
   }
 }
@@ -61,13 +63,13 @@ class MyTripsPage extends StatefulWidget {
 class _MyTripsPageState extends State<MyTripsPage> with SingleTickerProviderStateMixin {
   late TabController _tabController;
   int _notificationCount = 2;
-  List<Trip> allTrips = []; // List to hold all trips
+  List<Trip> allTrips = [];
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 4, vsync: this);
-    fetchTrips(); // Fetch API data
+    fetchTrips();
   }
 
   Future<void> fetchTrips() async {
@@ -291,7 +293,6 @@ class WishList extends StatelessWidget {
     );
   }
 }
-
 class TripCard extends StatelessWidget {
   final Trip trip;
 
@@ -312,25 +313,51 @@ class TripCard extends StatelessWidget {
               topLeft: Radius.circular(15.0),
               topRight: Radius.circular(15.0),
             ),
-            child: Image.network(
-              trip.image,
-              height: 120,
-              width: double.infinity,
-              fit: BoxFit.cover,
-              errorBuilder: (context, error, stackTrace) {
-                return Container(
-                  height: 120,
-                  color: Colors.grey,
-                  child: Center(child: Text("Image not available")),
-                );
-              },
-            ),
+            child: trip.image.isNotEmpty 
+                ? Image.network(
+                    trip.image, // URL hình ảnh từ API
+                    height: 120,
+                    width: double.infinity,
+                    fit: BoxFit.cover,
+                    loadingBuilder: (BuildContext context, Widget child, ImageChunkEvent? loadingProgress) {
+                      if (loadingProgress == null) {
+                        return child;
+                      } else {
+                        return Center(
+                          child: CircularProgressIndicator(
+                            value: loadingProgress.expectedTotalBytes != null
+                                ? loadingProgress.cumulativeBytesLoaded / (loadingProgress.expectedTotalBytes ?? 1)
+                                : null,
+                          ),
+                        );
+                      }
+                    },
+                    errorBuilder: (context, error, stackTrace) {
+                      return Container(
+                        height: 120,
+                        color: Colors.grey,
+                        child: Center(child: Text("Image not available")),
+                      );
+                    },
+                  )
+                : Container(
+                    height: 120,
+                    color: Colors.grey,
+                    child: Center(child: Text("No image available")),
+                  ),
           ),
           Padding(
             padding: const EdgeInsets.all(16.0),
             child: Text(
               trip.tripName,
               style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(13.0),
+            child: Text(
+              trip.date,
+              style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
             ),
           ),
         ],
