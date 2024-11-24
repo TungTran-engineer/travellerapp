@@ -1,8 +1,32 @@
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 import 'package:flutter_application_1/MyTripsPage.dart';
 import 'package:flutter_application_1/Chat.dart';
 import 'package:flutter_application_1/Profile.dart';
 import 'package:flutter_application_1/notification.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+
+class ImageWidget extends StatelessWidget {
+  final String imageUrl;
+
+  const ImageWidget({Key? key, required this.imageUrl}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return CachedNetworkImage(
+      imageUrl: imageUrl,
+      placeholder: (context, url) => Center(
+        child: CircularProgressIndicator(), // Hiển thị khi đang tải
+      ),
+      errorWidget: (context, url, error) => Center(
+        child: Icon(Icons.error, color: Colors.red), // Hiển thị khi link lỗi
+      ),
+      fit: BoxFit.cover,
+    );
+  }
+}
+
 
 class Home extends StatefulWidget {
   @override
@@ -15,57 +39,57 @@ class _HomeState extends State<Home> {
       name: 'Tuan Tran',
       location: 'Danang, Vietnam',
       imageUrl: 'assets/guide1.png',
-      reviews: 127,
     ),
     Guide(
       name: 'Emmy',
       location: 'Hanoi, Vietnam',
       imageUrl: 'assets/guide2.png',
-      reviews: 89,
     ),
     Guide(
       name: 'Linh Hana',
       location: 'Danang, Vietnam',
       imageUrl: 'assets/guide3.png',
-      reviews: 127,
     ),
     Guide(
       name: 'Khai Ho',
       location: 'Ho Chi Minh, Vietnam',
       imageUrl: 'assets/guide4.png',
-      reviews: 127,
     ),
   ];
 
-  final List<Trip> trips = [
-    Trip(
-      name: 'Trip to Halong Bay',
-      location: 'Quang Ninh, Vietnam',
-      imageUrl: 'assets/halong.png',
-      date: '2024-11-01',
-    ),
-    Trip(
-      name: 'Trip to Sapa',
-      location: 'Lao Cai, Vietnam',
-      imageUrl: 'assets/sapa.jpg',
-      date: '2024-12-15',
-    ),
-    Trip(
-      name: 'Trip to Hoi An',
-      location: 'Quang Nam, Vietnam',
-      imageUrl: 'assets/hoian.jpg',
-      date: '2024-10-25',
-    ),
-    Trip(
-      name: 'Trip to Paris',
-      location: 'Paris, France',
-      imageUrl: 'assets/paris.jpg',
-      date: '2024-11-10',
-    ),
-  ];
+  // API URL
+  final String apiUrl = 'https://api-travell-app-1.onrender.com/trip/';
+  List<dynamic> trips = [];
+  bool isLoading = true;
 
   // Giả sử biến này chứa số lượng thông báo chưa đọc
   int _notificationCount = 2;
+
+  @override
+  void initState() {
+    super.initState();
+    fetchTrips();
+  }
+
+  Future<void> fetchTrips() async {
+  try {
+    final response = await http.get(Uri.parse(apiUrl));
+    if (response.statusCode == 200) {
+      setState(() {
+        trips = json.decode(response.body);
+        print(trips);  // In ra kết quả JSON
+        isLoading = false;
+      });
+    } else {
+      throw Exception('Failed to load trips');
+    }
+  } catch (e) {
+    print(e);
+    setState(() {
+      isLoading = false;
+    });
+  }
+}
 
   @override
   Widget build(BuildContext context) {
@@ -128,7 +152,7 @@ class _HomeState extends State<Home> {
                   ),
                   SizedBox(height: 12),
                   Container(
-                    height: 200, // Chiều cao cho carousel
+                    height: 200,
                     child: ListView.builder(
                       scrollDirection: Axis.horizontal,
                       itemCount: 6,
@@ -155,6 +179,7 @@ class _HomeState extends State<Home> {
                 ],
               ),
             ),
+            // Upcoming Trips Section
             Padding(
               padding: const EdgeInsets.all(16.0),
               child: Column(
@@ -168,60 +193,77 @@ class _HomeState extends State<Home> {
                     ),
                   ),
                   SizedBox(height: 12),
-                  Container(
-                    height: 400,
-                    child: ListView.builder(
-                      scrollDirection: Axis.vertical,
-                      itemCount: trips.length,
-                      itemBuilder: (context, index) {
-                        final trip = trips[index];
-                        return Padding(
-                          padding: const EdgeInsets.only(right: 16.0),
-                          child: TripCard(trip: trip),
-                        );
-                      },
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Popular Guides',
-                    style: TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  SizedBox(height: 12),
-                  ListView.builder(
-                    shrinkWrap: true,
-                    physics: NeverScrollableScrollPhysics(),
-                    itemCount: (guides.length / 2).ceil(),
-                    itemBuilder: (context, index) {
-                      final startIndex = index * 2;
-                      final endIndex = (startIndex + 2).clamp(0, guides.length);
-                      final guidesOnPage = guides.sublist(startIndex, endIndex);
-
-                      return Row(
-                        children: guidesOnPage.map((guide) {
-                          return Expanded(
-                            child: Padding(
-                              padding: const EdgeInsets.all(8.0),
-                              child: GuideCard(guide: guide),
+                  isLoading
+                      ? Center(child: CircularProgressIndicator())
+                      : trips.isEmpty
+                          ? Center(
+                              child: Text(
+                                'No trips available!',
+                                style: TextStyle(fontSize: 16),
+                              ),
+                            )
+                          : ListView.builder(
+                              shrinkWrap: true,
+                              physics: NeverScrollableScrollPhysics(),
+                              itemCount: trips.length,
+                              itemBuilder: (context, index) {
+                                final trip = trips[index];
+                                return Padding(
+                                  padding: const EdgeInsets.only(bottom: 16.0),
+                                  child: TripCard(
+                                    trip: Trip(
+                                      name: trip['title'],
+                                      location: trip['location'],
+                                      imageUrl: trip['imageUrl'],
+                                      date: trip['date'],
+                                      title: trip['title'],
+                                      description: trip['description'],
+                                    ),
+                                  ),
+                                );
+                              },
                             ),
-                          );
-                        }).toList(),
-                      );
-                    },
-                  ),
                 ],
               ),
             ),
+            // Popular Guides Section
+            Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Popular Guides',
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                SizedBox(height: 12),
+                ListView.builder(
+                  shrinkWrap: true,
+                  physics: NeverScrollableScrollPhysics(),
+                  itemCount: (guides.length / 2).ceil(),
+                  itemBuilder: (context, index) {
+                    final startIndex = index * 2;
+                    final endIndex = (startIndex + 2).clamp(0, guides.length);
+                    final guidesOnPage = guides.sublist(startIndex, endIndex);
+
+                    return Row(
+                      children: guidesOnPage.map((guide) {
+                        return Flexible(
+                          child: Padding(
+                            padding: const EdgeInsets.all(8.0),
+                            child: GuideCard(guide: guide),
+                          ),
+                        );
+                      }).toList(),
+                    );
+                  },
+                ),
+              ],
+            ),
+          ),
           ],
         ),
       ),
@@ -253,7 +295,8 @@ class _HomeState extends State<Home> {
                     icon: Icon(Icons.notifications, color: Colors.grey[600]),
                     onPressed: () {
                       Navigator.of(context).pushReplacement(
-                        MaterialPageRoute(builder: (context) => NotificationsPage()),
+                        MaterialPageRoute(
+                            builder: (context) => NotificationsPage()),
                       );
                     },
                   ),
@@ -308,204 +351,194 @@ class _HomeState extends State<Home> {
     );
   }
 
-  Widget _buildFeaturedCard(String destination, String imageUrl) {
-    return Container(
-      width: 150,
-      margin: const EdgeInsets.symmetric(horizontal: 8.0),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(16.0),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black26,
-            blurRadius: 4.0,
-            spreadRadius: 2.0,
-            offset: Offset(2, 2),
+  Widget _buildFeaturedCard(String name, String imageUrl) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Container(
+          height: 120,
+          width: 120,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(15.0),
+            image: DecorationImage(
+              image: AssetImage(imageUrl),
+              fit: BoxFit.cover,
+            ),
           ),
-        ],
-        image: DecorationImage(
-          image: AssetImage(imageUrl),
-          fit: BoxFit.cover,
         ),
-      ),
-      child: Stack(
-        children: [
-          Positioned(
-            bottom: 0,
-            left: 0,
-            right: 0,
-            child: Container(
-              padding: const EdgeInsets.all(8.0),
-              decoration: BoxDecoration(
-                color: Colors.black45,
-                borderRadius: BorderRadius.only(
-                  bottomLeft: Radius.circular(16.0),
-                  bottomRight: Radius.circular(16.0),
-                ),
-              ),
-              child: Text(
-                destination,
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 16.0,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
+        SizedBox(height: 8),
+        Text(
+          name,
+          style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+        ),
+      ],
     );
   }
 }
 
-class GuideCard extends StatelessWidget {
-  final Guide guide;
-
-  GuideCard({required this.guide});
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      elevation: 4,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16.0),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Image.asset(
-            guide.imageUrl,
-            height: 150,
-            width: double.infinity,
-            fit: BoxFit.cover,
-          ),
-          Padding(
-            padding: const EdgeInsets.all(12.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  guide.name,
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 18,
-                  ),
-                ),
-                SizedBox(height: 4),
-                Row(
-                  children: [
-                    Icon(Icons.location_on, size: 16, color: Colors.grey[600]),
-                    SizedBox(width: 4),
-                    Text(
-                      guide.location,
-                      style: TextStyle(fontSize: 14, color: Colors.grey[600]),
-                    ),
-                  ],
-                ),
-                SizedBox(height: 8),
-                Text(
-                  '${guide.reviews} reviews',
-                  style: TextStyle(fontSize: 14, color: Colors.grey[600]),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class TripCard extends StatelessWidget {
-  final Trip trip;
-
-  TripCard({required this.trip});
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      elevation: 4,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16.0),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Image.asset(
-            trip.imageUrl,
-            height: 150,
-            width: double.infinity,
-            fit: BoxFit.cover,
-          ),
-          Padding(
-            padding: const EdgeInsets.all(12.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  trip.name,
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 18,
-                  ),
-                ),
-                SizedBox(height: 4),
-                Row(
-                  children: [
-                    Icon(Icons.location_on, size: 16, color: Colors.grey[600]),
-                    SizedBox(width: 4),
-                    Text(
-                      trip.location,
-                      style: TextStyle(fontSize: 14, color: Colors.grey[600]),
-                    ),
-                  ],
-                ),
-                SizedBox(height: 8),
-                Row(
-                  children: [
-                    Icon(Icons.calendar_today, size: 16, color: Colors.grey[600]),
-                    SizedBox(width: 4),
-                    Text(
-                      trip.date,
-                      style: TextStyle(fontSize: 14, color: Colors.grey[600]),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
+// Classes for Guide and Trip
 class Guide {
   final String name;
   final String location;
   final String imageUrl;
-  final int reviews;
+
 
   Guide({
     required this.name,
     required this.location,
     required this.imageUrl,
-    required this.reviews,
+
   });
 }
 
 class Trip {
   final String name;
+  final String title;
   final String location;
   final String imageUrl;
+  final String description;
   final String date;
 
   Trip({
     required this.name,
+    required this.title,
     required this.location,
     required this.imageUrl,
+    required this.description,
     required this.date,
   });
+
+  factory Trip.fromJson(Map<String, dynamic> json) {
+    return Trip(
+      name: json['name'],
+      title: json['title'],
+      location: json['location'],
+      imageUrl: json['imageUrl'],
+      description: json['description'],
+      date: json['date'],
+    );
+  }
+}
+
+
+
+class TripCard extends StatelessWidget {
+  final Trip trip;
+
+  const TripCard({Key? key, required this.trip}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      elevation: 4,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      child: Row(
+        children: [
+          Container(
+            height: 80,
+            width: 80,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(10),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.2),
+                  blurRadius: 6,
+                  offset: Offset(0, 2),
+                ),
+              ],
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(10),
+              child: Image.network(
+                  trip.imageUrl,
+                loadingBuilder: (context, child, loadingProgress) {
+                  if (loadingProgress == null) return child;
+                  return Center(child: CircularProgressIndicator());
+                },
+                errorBuilder: (context, error, stackTrace) {
+                  return Center(
+                    child: Icon(Icons.error, color: Colors.red),
+                  );
+                },
+                headers: {"User-Agent": "Mozilla/5.0"}, // Thêm header để giả lập trình duyệt
+                fit: BoxFit.cover,
+              ),
+            ),
+          ),
+
+          SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  trip.title,
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                SizedBox(height: 4),
+                Text(
+                  trip.location,
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.grey[600],
+                  ),
+                ),
+                SizedBox(height: 4),
+                Text(
+                  trip.date,
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.blueGrey,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+
+// GuideCard widget
+class GuideCard extends StatelessWidget {
+  final Guide guide;
+
+  const GuideCard({Key? key, required this.guide}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Image.asset(
+            guide.imageUrl,
+            height: 100,
+            width: double.infinity,
+            fit: BoxFit.cover,
+          ),
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: Text(
+              guide.name,
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8.0),
+            child: Text(
+              guide.location,
+              style: TextStyle(color: Colors.grey),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
