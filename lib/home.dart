@@ -181,30 +181,31 @@ class _HomeState extends State<Home> {
             ),
             // Upcoming Trips Section
             Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Upcoming Trips',
-                    style: TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                    ),
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Upcoming Trips',
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
                   ),
-                  SizedBox(height: 12),
-                  isLoading
-                      ? Center(child: CircularProgressIndicator())
-                      : trips.isEmpty
-                          ? Center(
-                              child: Text(
-                                'No trips available!',
-                                style: TextStyle(fontSize: 16),
-                              ),
-                            )
-                          : ListView.builder(
-                              shrinkWrap: true,
-                              physics: NeverScrollableScrollPhysics(),
+                ),
+                SizedBox(height: 12),
+                isLoading
+                    ? Center(child: CircularProgressIndicator())
+                    : trips.isEmpty
+                        ? Center(
+                            child: Text(
+                              'No trips available!',
+                              style: TextStyle(fontSize: 16),
+                            ),
+                          )
+                        : Container(
+                            height: 300, // Chiều cao có thể cuộn được
+                            child: ListView.builder(
+                              scrollDirection: Axis.vertical,
                               itemCount: trips.length,
                               itemBuilder: (context, index) {
                                 final trip = trips[index];
@@ -223,9 +224,10 @@ class _HomeState extends State<Home> {
                                 );
                               },
                             ),
-                ],
-              ),
+                          ),
+              ],
             ),
+          ),
             // Popular Guides Section
             Padding(
             padding: const EdgeInsets.all(16.0),

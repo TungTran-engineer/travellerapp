@@ -5,52 +5,32 @@ import 'package:flutter_application_1/home.dart';
 import 'package:flutter_application_1/notification.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'package:cached_network_image/cached_network_image.dart';
-
 
 class Trip {
+  final String name;
   final String id;
-  final String image;
+  final String imageUrl;
   final String location;
-  final String tripName;
   final String date;
-  final String time;
   final String guide;
-  final String detail;
-  final String chat;
-  final String pay;
-  final bool isWishList;
 
   Trip({
+    required this.name,
     required this.id,
-    required this.image,
+    required this.imageUrl,
     required this.location,
-    required this.tripName,
     required this.date,
-    required this.time,
     required this.guide,
-    required this.detail,
-    required this.chat,
-    required this.pay,
-    required this.isWishList,
   });
 
   factory Trip.fromJson(Map<String, dynamic> json) {
-    final tripData = json['trip'] ?? {};
-    final actionsData = tripData['actions'] ?? {};
-
     return Trip(
+      name: json['title'] ?? 'No title',
       id: json['_id'] ?? 'Unknown ID',
-      image: json['imageURL'] ?? 'assets/placeholder.png',
-      location: json['name'] ?? 'Unknown location',
-      tripName: tripData['tripName'] ?? 'Unnamed trip',
-      date: tripData['date'] ?? 'No date',
-      time: tripData['time'] ?? 'No time',
-      guide: tripData['guide'] ?? 'No guide',
-      detail: actionsData['Detail'] ?? 'No detail',
-      chat: actionsData['Chat'] ?? 'No chat link',
-      pay: actionsData['Pay'] ?? 'No payment info',
-      isWishList: json['isWishList'] ?? false,
+      imageUrl: json['imageUrl'] ?? '',
+      location: json['location'] ?? 'Unknown location',
+      date: json['date'] ?? 'Unknown date',
+      guide: json['guide'] ?? 'No guide information',
     );
   }
 }
@@ -64,6 +44,7 @@ class _MyTripsPageState extends State<MyTripsPage> with SingleTickerProviderStat
   late TabController _tabController;
   int _notificationCount = 2;
   List<Trip> allTrips = [];
+  bool isLoading = true;
 
   @override
   void initState() {
@@ -75,24 +56,45 @@ class _MyTripsPageState extends State<MyTripsPage> with SingleTickerProviderStat
   Future<void> fetchTrips() async {
     try {
       final response = await http.get(Uri.parse('https://api-travell-app-1.onrender.com/trip/'));
-
       if (response.statusCode == 200) {
         List<dynamic> jsonData = json.decode(response.body);
         setState(() {
           allTrips = jsonData.map((data) => Trip.fromJson(data)).toList();
+          isLoading = false;
         });
       } else {
-        print('Failed to load trips, status code: ${response.statusCode}');
+        print('Failed to load trips: ${response.statusCode}');
       }
     } catch (e) {
-      print('Error fetching data: $e');
+      print('Error fetching trips: $e');
     }
   }
 
-  List<Trip> get nowTrips => allTrips.where((trip) => /* add condition for now trips */ true).toList();
-  List<Trip> get nextTrips => allTrips.where((trip) => /* add condition for next trips */ true).toList();
-  List<Trip> get pastTrips => allTrips.where((trip) => /* add condition for past trips */ true).toList();
-  List<Trip> get wishListTrips => allTrips.where((trip) => trip.isWishList).toList();
+// Chuyến đi trong quá khứ
+List<Trip> get pastTrips => allTrips.where((trip) {
+  final tripDate = DateTime.parse(trip.date); // Ngày từ API
+  return tripDate.isBefore(DateTime.now()); // Trước thời gian hiện tại
+}).toList();
+
+// Chuyến đi đang diễn ra
+List<Trip> get nowTrips => allTrips.where((trip) {
+  final tripDate = DateTime.parse(trip.date);
+  final currentDate = DateTime.now();
+  
+  // So sánh ngày hiện tại (cùng ngày hoặc cách nhau vài giờ)
+  return tripDate.year == currentDate.year &&
+         tripDate.month == currentDate.month &&
+         tripDate.day == currentDate.day; // Cùng ngày
+}).toList();
+
+// Chuyến đi trong tương lai
+List<Trip> get nextTrips => allTrips.where((trip) {
+  final tripDate = DateTime.parse(trip.date);
+  return tripDate.isAfter(DateTime.now()); // Sau thời gian hiện tại
+}).toList();
+
+
+List<Trip> get wishListTrips => allTrips;
 
   @override
   void dispose() {
@@ -115,39 +117,41 @@ class _MyTripsPageState extends State<MyTripsPage> with SingleTickerProviderStat
           ),
         ),
       ),
-      body: Column(
-        children: [
-          Container(
-            color: Colors.white,
-            child: TabBar(
-              labelColor: Colors.white,
-              unselectedLabelColor: Colors.black,
-              indicator: BoxDecoration(
-                color: Color(0xFF00C39A),
-                borderRadius: BorderRadius.circular(10.0),
-              ),
-              controller: _tabController,
-              tabs: [
-                Tab(text: 'Now Trips'),
-                Tab(text: 'Next Trips'),
-                Tab(text: 'Past Trips'),
-                Tab(text: 'Wish List'),
-              ],
-            ),
-          ),
-          Expanded(
-            child: TabBarView(
-              controller: _tabController,
+      body: isLoading
+          ? Center(child: CircularProgressIndicator())
+          : Column(
               children: [
-                CurrentTrips(displayedTrips: nowTrips),
-                NextTrip(displayedTrips: nextTrips),
-                PastTrips(displayedTrips: pastTrips),
-                WishList(displayedTrips: wishListTrips),
+                Container(
+                  color: Colors.white,
+                  child: TabBar(
+                    labelColor: Colors.white,
+                    unselectedLabelColor: Colors.black,
+                    indicator: BoxDecoration(
+                      color: Color(0xFF00C39A),
+                      borderRadius: BorderRadius.circular(10.0),
+                    ),
+                    controller: _tabController,
+                    tabs: [
+                      Tab(text: 'Now Trips'),
+                      Tab(text: 'Next Trips'),
+                      Tab(text: 'Past Trips'),
+                      Tab(text: 'Wish List'),
+                    ],
+                  ),
+                ),
+                Expanded(
+                  child: TabBarView(
+                    controller: _tabController,
+                    children: [
+                      TripList(trips: nowTrips),
+                      TripList(trips: nextTrips),
+                      TripList(trips: pastTrips),
+                      TripList(trips: wishListTrips),
+                    ],
+                  ),
+                ),
               ],
             ),
-          ),
-        ],
-      ),
       bottomNavigationBar: BottomAppBar(
         color: Colors.white,
         shape: CircularNotchedRectangle(),
@@ -226,73 +230,25 @@ class _MyTripsPageState extends State<MyTripsPage> with SingleTickerProviderStat
   }
 }
 
-class CurrentTrips extends StatelessWidget {
-  final List<Trip> displayedTrips;
+class TripList extends StatelessWidget {
+  final List<Trip> trips;
 
-  CurrentTrips({required this.displayedTrips});
-
-  @override
-  Widget build(BuildContext context) {
-    return ListView.builder(
-      itemCount: displayedTrips.length,
-      itemBuilder: (context, index) {
-        final trip = displayedTrips[index];
-        return TripCard(trip: trip);
-      },
-    );
-  }
-}
-
-class NextTrip extends StatelessWidget {
-  final List<Trip> displayedTrips;
-
-  NextTrip({required this.displayedTrips});
+  TripList({required this.trips});
 
   @override
   Widget build(BuildContext context) {
-    return ListView.builder(
-      itemCount: displayedTrips.length,
-      itemBuilder: (context, index) {
-        final trip = displayedTrips[index];
-        return TripCard(trip: trip);
-      },
-    );
+    return trips.isEmpty
+        ? Center(child: Text('No trips available'))
+        : ListView.builder(
+            itemCount: trips.length,
+            itemBuilder: (context, index) {
+              final trip = trips[index];
+              return TripCard(trip: trip);
+            },
+          );
   }
 }
 
-class PastTrips extends StatelessWidget {
-  final List<Trip> displayedTrips;
-
-  PastTrips({required this.displayedTrips});
-
-  @override
-  Widget build(BuildContext context) {
-    return ListView.builder(
-      itemCount: displayedTrips.length,
-      itemBuilder: (context, index) {
-        final trip = displayedTrips[index];
-        return TripCard(trip: trip);
-      },
-    );
-  }
-}
-
-class WishList extends StatelessWidget {
-  final List<Trip> displayedTrips;
-
-  WishList({required this.displayedTrips});
-
-  @override
-  Widget build(BuildContext context) {
-    return ListView.builder(
-      itemCount: displayedTrips.length,
-      itemBuilder: (context, index) {
-        final trip = displayedTrips[index];
-        return TripCard(trip: trip);
-      },
-    );
-  }
-}
 class TripCard extends StatelessWidget {
   final Trip trip;
 
@@ -302,9 +258,9 @@ class TripCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Card(
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(25.0),
+        borderRadius: BorderRadius.circular(15.0),
       ),
-      elevation: 4,
+      margin: EdgeInsets.all(10.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -313,52 +269,33 @@ class TripCard extends StatelessWidget {
               topLeft: Radius.circular(15.0),
               topRight: Radius.circular(15.0),
             ),
-            child: trip.image.isNotEmpty 
+            child: trip.imageUrl.isNotEmpty
                 ? Image.network(
-                    trip.image, // URL hình ảnh từ API
-                    height: 120,
+                    trip.imageUrl,
+                    height: 200,
                     width: double.infinity,
                     fit: BoxFit.cover,
-                    loadingBuilder: (BuildContext context, Widget child, ImageChunkEvent? loadingProgress) {
-                      if (loadingProgress == null) {
-                        return child;
-                      } else {
-                        return Center(
-                          child: CircularProgressIndicator(
-                            value: loadingProgress.expectedTotalBytes != null
-                                ? loadingProgress.cumulativeBytesLoaded / (loadingProgress.expectedTotalBytes ?? 1)
-                                : null,
-                          ),
-                        );
-                      }
-                    },
-                    errorBuilder: (context, error, stackTrace) {
-                      return Container(
-                        height: 120,
-                        color: Colors.grey,
-                        child: Center(child: Text("Image not available")),
-                      );
-                    },
                   )
                 : Container(
-                    height: 120,
+                    height: 200,
                     color: Colors.grey,
-                    child: Center(child: Text("No image available")),
+                    child: Center(child: Text('No Image')),
                   ),
           ),
           Padding(
-            padding: const EdgeInsets.all(16.0),
+            padding: const EdgeInsets.all(8.0),
             child: Text(
-              trip.tripName,
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              trip.name,
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
           ),
           Padding(
-            padding: const EdgeInsets.all(13.0),
-            child: Text(
-              trip.date,
-              style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: 8.0),
+            child: Text('Location: ${trip.location}', style: TextStyle(fontSize: 14)),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
+            child: Text('Date: ${trip.date}', style: TextStyle(fontSize: 14)),
           ),
         ],
       ),
